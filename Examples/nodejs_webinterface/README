@@ -5,7 +5,7 @@ Javascript for implementing the gui-part and ORTD for the
 real-time part including the UDP-communication allows an effective
 formulation of the algorithms.
 
-A demonstration run can be view on YouTube: http://youtu.be/Mln_JxfzLD0
+A demonstration run can be watched on YouTube: http://youtu.be/Mln_JxfzLD0
 
 In the future, the code will included in the framework to allow an even 
 more compact implementation, such that only a few lines of ORTD-code 
