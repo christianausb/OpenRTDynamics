@@ -98,7 +98,7 @@ server.on('message', function (message, remote) {
 	  
       // buffer the vales
       RingBuffer.addElement(Values);
-    } catch {
+    } catch(err) {
       console.log("Received a malformed UDP-packet");
     }
 });
