@@ -1,8 +1,8 @@
 This is a demonstration on how to set-up a web-interface to a control
 system implemented using OpenRTDynamics.sf.net. As you'll notice
-this is possible even with a few lines of code, because the usage of
+this is possible in a few lines of code, because the usage of
 Javascript for implementing the gui-part and ORTD for the 
-real-time part including the UDP-communication allows an effective
+real-time part including the UDP-communication allows an efficient
 formulation of the algorithms.
 
 A demonstration run can be watched on YouTube: http://youtu.be/Mln_JxfzLD0
@@ -14,7 +14,14 @@ be required to obtain a full web-based graphical user interface.
 The aim is to allow to let ORTD automagically create a gui for you,
 similar to e.g. LabView (TM) does.
 For now, it is suggested to use this example as a template for other 
-applications.
+applications. Additionally this example may serve to show how to
+do the following tasks in ORTD:
+
+- implementation of threads
+- implementation of a packet-based communication protocol
+- synchronisation of simulations in a thread to events (in 
+  this case the arrival of UDP-packets)
+- implementation and simulation of a discrete-time dynamic model
 
 
  
