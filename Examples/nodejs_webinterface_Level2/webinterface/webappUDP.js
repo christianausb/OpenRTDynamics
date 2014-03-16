@@ -20,7 +20,7 @@ var ORTD_PORT = 20001;
 
 var NValues = 7; // must be the same as NValues_send defined in UDPio.sce when calling UDPSend
 var DataBufferSize = 20000; // Number of elementes stored in the ringbuffer
-var NParameters = 6;
+// var NParameters = 6;
 
 
 
@@ -200,24 +200,33 @@ io.sockets.on('connection', function (socket) {
 
   
  // wait for a parameter upload by the client
-  socket.on('ChangeParam_Set', function (data) {
+  socket.on('ChangeParam_Set', function (s) {
     //
     // assemble the binary udp-packet
     //
     
+    console.log(s);
+    
+    ParameterID = s[0];
+    data = s[1];
+    
+    Parameter = ProtocollConfig.ParametersConfig[ParameterID];
+    
+//     console.log(data);
+    
     var i;
     
     // the required message length
-    var MessageLength = 12+NParameters*8;
+    var MessageLength = 12+Parameter.NValues*8;
     
     // write the header of the UDP-packet
     UDPSendPacketBuffer.writeInt32LE( 1, 0 );
-    UDPSendPacketBuffer.writeInt32LE( 1234, 4 );
-    UDPSendPacketBuffer.writeInt32LE( 6468235, 8 );
+    UDPSendPacketBuffer.writeInt32LE( 100, 4 );
+    UDPSendPacketBuffer.writeInt32LE( ParameterID, 8 );
     
     // add the parameters given in data[i]
-    for (i=0; i<NParameters; ++i) {
-      UDPSendPacketBuffer.writeDoubleLE(  data[i], 12+i*8 );
+    for (i=0; i<Parameter.NValues; ++i) {
+      UDPSendPacketBuffer.writeDoubleLE(  parseFloat( data[i] ) , 12+i*8 );
     }
                     
     // send this packet to ORTD

@@ -23,27 +23,39 @@ function [PacketFramework,SourceID] = ld_PF_addsource(PacketFramework, NValues_s
   PacketFramework.SourceID_counter = PacketFramework.SourceID_counter + 1;
 endfunction
 
-function [PacketFramework,ParameterID] = ld_PF_addparameter(PacketFramework, NValues, datatype, ParameterName)
+function [PacketFramework,ParameterID,MemoryOfs] = ld_PF_addparameter(PacketFramework, NValues, datatype, ParameterName)
   ParameterID = PacketFramework.Parameterid_counter;
 
   Parameter.ParameterName = ParameterName;
   Parameter.ParameterID = ParameterID;
   Parameter.NValues = NValues;
   Parameter.datatype =  datatype;
+  Parameter.MemoryOfs = PacketFramework.ParameterMemOfs_counter;
   
   // Add new source to the list
   PacketFramework.Parameters($+1) = Parameter;
   
-  // inc counter
+  // inc counters
   PacketFramework.Parameterid_counter = PacketFramework.Parameterid_counter + 1;
+  PacketFramework.ParameterMemOfs_counter = PacketFramework.ParameterMemOfs_counter + NValues;
+
+  // return values
+  ParameterID = Parameter.ParameterID; 
+  MemoryOfs = Parameter.MemoryOfs;
 endfunction
 
 function [sim, PacketFramework, Parameter]=ld_PF_Parameter(sim, PacketFramework, NValues, datatype, ParameterName)
-    [PacketFramework,SourceID] = ld_PF_addparameter(PacketFramework, NValues, datatype, ParameterName);
+    [PacketFramework,ParameterID,MemoryOfs] = ld_PF_addparameter(PacketFramework, NValues, datatype, ParameterName);
    
-    [sim, readI] = ld_const(sim, ev, i); // start at index 1
-    [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory_"+ParameterName, ...
-						datatype, 1);
+//     [sim, readI] = ld_const(sim, ev, MemoryOfs); // start at index 1
+//     [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory_"+ParameterName, ...
+// 						datatype, NValues);
+
+    [sim, readI] = ld_const(sim, ev, MemoryOfs); // start at index 1
+    [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory", ...
+						datatype, NValues);
+
+
 endfunction
 
 function [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal, NValues_send, datatype, SourceName)
@@ -66,7 +78,7 @@ function [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal, NVal
 
 
       // print data
-      [sim] = ld_printf(sim, ev, Signal, "Signal to send = ", NValues_send);
+//       [sim] = ld_printf(sim, ev, Signal, "Signal to send = ", NValues_send);
 
       // make a binary structure
       [sim, Data, NBytes] = ld_ConcateData(sim, ev, ...
@@ -96,8 +108,31 @@ endfunction
 
 function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configuration)
 
+      
+//   Nvalues_recv = Configuration.Nvalues_recv;
+
+  // initialise structure for sources
+  PacketFramework.InstanceName = InstanceName;
+//   PacketFramework.Nvalues_recv = list(Nvalues_recv); // number of parameters TODO remove
+  PacketFramework.Configuration = Configuration;
+  
+  // sources
+  PacketFramework.SourceID_counter = 0;
+  PacketFramework.Sources = list();
+  
+  
+  // parameters
+  PacketFramework.Parameterid_counter = 0;
+  PacketFramework.ParameterMemOfs_counter = 1; // start at the first index in the memory
+  PacketFramework.Parameters = list();
+
+endfunction
+
+function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
+
+
       // The main real-time thread
-      function [sim] = ld_PF_InitUDP(sim, InstanceName, Nvalues_recv)
+      function [sim] = ld_PF_InitUDP(sim, InstanceName, ParameterMemory)
 
 	  function [sim, outlist, userdata] = UDPReceiverThread(sim, inlist, userdata)
 	    // This will run in a thread. Each time a UDP-packet is received 
@@ -105,28 +140,50 @@ function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configur
 	    // and the contained parameters are stored into a memory.
 
 	    // Sync the simulation to incomming UDP-packets
-	    [sim, Data, SrcAddr] = ld_UDPSocket_Recv(sim, 0, ObjectIdentifyer=InstanceName+"aSocket", outsize=4+4+4+Nvalues_recv*8 );
+	    [sim, Data, SrcAddr] = ld_UDPSocket_Recv(sim, 0, ObjectIdentifyer=InstanceName+"aSocket", outsize=PacketSize );
 
 	    // disassemble packet's structure
 	    [sim, DisAsm] = ld_DisassembleData(sim, ev, in=Data, ...
-				  outsizes=[1,1,1,Nvalues_recv], ...
+				  outsizes=[1,1,1,TotalElemetsPerPacket], ...
 				  outtypes=[ ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, ORTD.DATATYPE_FLOAT ] );
 
-	    [sim, DisAsm(1)] = ld_Int32ToFloat(sim, ev, DisAsm(1) );
-	    [sim, DisAsm(2)] = ld_Int32ToFloat(sim, ev, DisAsm(2) );
-	    [sim, DisAsm(3)] = ld_Int32ToFloat(sim, ev, DisAsm(3) );
+
+
+            DisAsm_ = list();
+            DisAsm_(4) = DisAsm(4);
+	    [sim, DisAsm_(1)] = ld_Int32ToFloat(sim, ev, DisAsm(1) );
+	    [sim, DisAsm_(2)] = ld_Int32ToFloat(sim, ev, DisAsm(2) );
+	    [sim, DisAsm_(3)] = ld_Int32ToFloat(sim, ev, DisAsm(3) );
 
 	    // print the contents
-	    [sim] = ld_printf(sim, ev, DisAsm(1), "DisAsm(1) (SenderID)       = ", 1);
-	    [sim] = ld_printf(sim, ev, DisAsm(2), "DisAsm(2) (Packet Counter) = ", 1);
-	    [sim] = ld_printf(sim, ev, DisAsm(3), "DisAsm(3) (SourceID)       = ", 1);
-	    [sim] = ld_printf(sim, ev, DisAsm(4), "DisAsm(4) (Signal)         = ", Nvalues_recv);
+	    [sim] = ld_printf(sim, ev, DisAsm_(1), "DisAsm(1) (SenderID)       = ", 1);
+	    [sim] = ld_printf(sim, ev, DisAsm_(2), "DisAsm(2) (Packet Counter) = ", 1);
+	    [sim] = ld_printf(sim, ev, DisAsm_(3), "DisAsm(3) (SourceID)       = ", 1);
+	    [sim] = ld_printf(sim, ev, DisAsm_(4), "DisAsm(4) (Signal)         = ", TotalElemetsPerPacket);
+
+
+
+            [sim, memofs] = ld_ArrayInt32(sim, 0, array=ParameterMemory.MemoryOfs, in=DisAsm(3) );
+            [sim, Nelements] = ld_ArrayInt32(sim, 0, array=ParameterMemory.Sizes, in=DisAsm(3) );
+
+ 	    [sim, memofs_] = ld_Int32ToFloat(sim, ev, memofs );
+ 	    [sim, Nelements_] = ld_Int32ToFloat(sim, ev, Nelements );
+  	    [sim] = ld_printf(sim, ev, memofs_ ,  "memofs                    = ", 1);
+  	    [sim] = ld_printf(sim, ev, memofs_ ,  "Nelements                 = ", 1);
+
+
+
 
 	    // Store the input data into a shared memory
-	    [sim, one] = ld_const(sim, ev, 1);
-	    [sim] = ld_write_global_memory(sim, 0, data=DisAsm(4), index=one, ...
-					  ident_str=InstanceName+"Memory", datatype=ORTD.DATATYPE_FLOAT, ...
-					  ElementsToWrite=Nvalues_recv);
+// 	    [sim, one] = ld_const(sim, ev, 1);
+// 	    [sim] = ld_write_global_memory(sim, 0, data=DisAsm(4), index=memofs_, ...
+// 					  ident_str=InstanceName+"Memory", datatype=ORTD.DATATYPE_FLOAT, ...
+// 					  ElementsToWrite=Nvalues_recv);
+
+	    [sim] = ld_WriteMemory2(sim, 0, data=DisAsm(4), index=memofs, ElementsToWrite=Nelements, ...
+					  ident_str=InstanceName+"Memory", datatype=ORTD.DATATYPE_FLOAT, MaxElements=TotalElemetsPerPacket );
+
+
 
 	    // output of schematic
 	    outlist = list();
@@ -137,13 +194,17 @@ function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configur
 	// start the node.js service from the subfolder webinterface
 	//[sim, out] = ld_startproc2(sim, 0, exepath="./webappUDP.sh", chpwd="webinterface", prio=0, whentorun=0);
 	
+        TotalMemorySize = sum(PacketFramework.ParameterMemory.Sizes);
+        TotalElemetsPerPacket = floor((1400-3*4)/8); // number of doubles values that fit into one UDP-packet with maximal size of 1400 bytes
+        PacketSize = TotalElemetsPerPacket*8 + 3*4;
+
 	// Open an UDP-Port in server mode
 	[sim] = ld_UDPSocket_shObj(sim, ev, ObjectIdentifyer=InstanceName+"aSocket", Visibility=0, hostname="127.0.0.1", UDPPort=20001);
 
-	// initialise a global memory for storing the input data for the computation TODO remove
+	// initialise a global memory for storing the input data for the computation
 	[sim] = ld_global_memory(sim, ev, ident_str=InstanceName+"Memory", ... 
-				datatype=ORTD.DATATYPE_FLOAT, len=Nvalues_recv, ...
-				initial_data=[zeros(Nvalues_recv,1)], ... 
+				datatype=ORTD.DATATYPE_FLOAT, len=TotalMemorySize, ...
+				initial_data=[zeros(TotalMemorySize,1)], ... 
 				visibility='global', useMutex=1);
 
 	// Create thread for the receiver
@@ -160,29 +221,32 @@ function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configur
 
       endfunction
 
-      
-  Nvalues_recv = Configuration.Nvalues_recv;
 
-  // initialise structure for sources
-  PacketFramework.InstanceName = InstanceName;
-  PacketFramework.Nvalues_recv = list(Nvalues_recv); // number of parameters TODO remove
-  PacketFramework.Configuration = Configuration;
-  
-  // sources
-  PacketFramework.SourceID_counter = 0;
-  PacketFramework.Sources = list();
-  
-  
-  // parameters
-  PacketFramework.Parameterid_counter = 0;
-  PacketFramework.Parameters = list();
-  
-  [sim] = ld_PF_InitUDP(sim, PacketFramework.InstanceName, Nvalues_recv);
-  
-endfunction
 
-function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
 
+
+  // calc memory
+  MemoryOfs = [];
+  Sizes = [];
+  // go through all parameters and create memories for all
+  for i=1:length(PacketFramework.Parameters)
+     P = PacketFramework.Parameters(i);
+
+     Sizes = [Sizes; P.NValues];
+     MemoryOfs = [MemoryOfs; P.MemoryOfs];
+  end
+  
+  PacketFramework.ParameterMemory.MemoryOfs = MemoryOfs;
+  PacketFramework.ParameterMemory.Sizes = Sizes;
+
+
+  [sim] = ld_PF_InitUDP(sim, PacketFramework.InstanceName, PacketFramework.ParameterMemory);
+
+
+
+
+
+// TODO: remove below
 
   // go through all parameters and create memories for all
   for i=1:length(PacketFramework.Parameters)

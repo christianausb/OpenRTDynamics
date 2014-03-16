@@ -46,74 +46,6 @@ endfunction
 
 
 
-// Send a signal via UDP, a simple protocoll is defined
-function [sim]=SendUDP(sim, Signal, NValues_send)
-  [sim,one] = ld_const(sim, 0, 1);
-
-  // Packet counter, so the order of the network packages can be determined
-  [sim, Counter] = ld_modcounter(sim, ev, in=one, initial_count=0, mod=100000);
-  [sim, Counter_int32] = ld_ceilInt32(sim, ev, Counter);
-
-  // Source ID
-  [sim, SourceID] = ld_const(sim, ev, 4);
-  [sim, SourceID_int32] = ld_ceilInt32(sim, ev, SourceID);
-
-  // Sender ID
-  [sim, SenderID] = ld_const(sim, ev, 1295793); // random number
-  [sim, SenderID_int32] = ld_ceilInt32(sim, ev, SenderID);
-
-
-  // print data
-  [sim] = ld_printf(sim, ev, Signal, "Signal to send = ", NValues_send);
-
-  // make a binary structure
-  [sim, Data, NBytes] = ld_ConcateData(sim, ev, ...
-                         inlist=list(SenderID_int32, Counter_int32, SourceID_int32, Signal ), insizes=[1,1,1,NValues_send], ...
-                         intypes=[ ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, ORTD.DATATYPE_FLOAT ] );
-
-  printf("The size of the UDP-packets will be %d bytes.\n", NBytes);
-
-  // send to the network 
-  [sim, NBytes__] = ld_constvecInt32(sim, ev, vec=NBytes); // the number of bytes that are actually send is dynamic, but must be smaller or equal to 
-  [sim] = ld_UDPSocket_SendTo(sim, ev, SendSize=NBytes__, ObjectIdentifyer="aSocket", ...
-                              hostname="127.0.0.1", UDPPort=10000, in=Data, ...
-                              insize=NBytes);
-
-endfunction
-
-
-function [sim, outlist, userdata] = UDPReceiverThread(sim, inlist, userdata)
-  // This will run in a thread. Each time a UDP-packet is received 
-  // one simulation step is performed. Herein, the packet is parsed
-  // and the contained parameters are stored into a memory.
-
-  // Sync the simulation to incomming UDP-packets
-  [sim, Data, SrcAddr] = ld_UDPSocket_Recv(sim, 0, ObjectIdentifyer="aSocket", outsize=4+4+4+Nvalues_recv*8 );
-
-  // disassemble packet's structure
-  [sim, DisAsm] = ld_DisassembleData(sim, ev, in=Data, ...
-                         outsizes=[1,1,1,Nvalues_recv], ...
-                         outtypes=[ ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, ORTD.DATATYPE_FLOAT ] );
-
-  [sim, DisAsm(1)] = ld_Int32ToFloat(sim, ev, DisAsm(1) );
-  [sim, DisAsm(2)] = ld_Int32ToFloat(sim, ev, DisAsm(2) );
-  [sim, DisAsm(3)] = ld_Int32ToFloat(sim, ev, DisAsm(3) );
-
-  // print the contents
-  [sim] = ld_printf(sim, ev, DisAsm(1), "DisAsm(1) (SenderID)       = ", 1);
-  [sim] = ld_printf(sim, ev, DisAsm(2), "DisAsm(2) (Packet Counter) = ", 1);
-  [sim] = ld_printf(sim, ev, DisAsm(3), "DisAsm(3) (SourceID)       = ", 1);
-  [sim] = ld_printf(sim, ev, DisAsm(4), "DisAsm(4) (Signal)         = ", Nvalues_recv);
-
-  // Store the input data into a shared memory
-  [sim, one] = ld_const(sim, ev, 1);
-  [sim] = ld_write_global_memory(sim, 0, data=DisAsm(4), index=one, ...
-				ident_str="ParameterMemory", datatype=ORTD.DATATYPE_FLOAT, ...
-				ElementsToWrite=Nvalues_recv);
-
-  // output of schematic
-  outlist = list();
-endfunction
 
 
 
@@ -127,40 +59,7 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
   // Add you own control system here
   //
 
-//   // Open an UDP-Port
-//   [sim] = ld_UDPSocket_shObj(sim, ev, ObjectIdentifyer="aSocket", Visibility=0, hostname="127.0.0.1", UDPPort=10001);
-// 
-//   // Number of parameters
-//   Nvalues_recv = 2;
-// 
-//   // initialise a global memory for storing the input data for the computation
-//   [sim] = ld_global_memory(sim, ev, ident_str="ParameterMemory", ... 
-// 			  datatype=ORTD.DATATYPE_FLOAT, len=Nvalues_recv, ...
-// 			  initial_data=[zeros(Nvalues_recv,1)], ... 
-// 			  visibility='global', useMutex=1);
-// 
-//   // Create thread for the receiver
-//   ThreadPrioStruct.prio1=ORTD.ORTD_RT_NORMALTASK, ThreadPrioStruct.prio2=0, ThreadPrioStruct.cpu = -1;
-//   [sim, startcalc] = ld_const(sim, 0, 1); // triggers your computation during each time step
-//   [sim, outlist, computation_finished] = ld_async_simulation(sim, 0, ...
-// 			inlist=list(), ...
-// 			insizes=[], outsizes=[], ...
-// 			intypes=[], outtypes=[], ...
-// 			nested_fn = UDPReceiverThread, ...
-// 			TriggerSignal=startcalc, name="Thread1", ...
-// 			ThreadPrioStruct, userdata=list() );
-// 
-// 
-// 
-//   // Read the parameters
-//   [sim, readI] = ld_const(sim, ev, 1); // start at index 1
-//   [sim, Parameter1] = ld_read_global_memory(sim, ev, index=readI, ident_str="ParameterMemory", ...
-// 					      datatype=ORTD.DATATYPE_FLOAT, 1);
-// 
-//   [sim, readI] = ld_const(sim, ev, 2); // start at index 2
-//   [sim, Parameter2] = ld_read_global_memory(sim, ev, index=readI, ident_str="ParameterMemory", ...
-// 					      datatype=ORTD.DATATYPE_FLOAT, 1);
-// 
+
 
    Nvalues_recv = 2;
    
@@ -175,11 +74,16 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
 //    [sim, ParameterList] = ld_PF_GetParameters(sim, PacketFramework, Np=Nvalues_recv);
 
    [sim, PacketFramework, Input]=ld_PF_Parameter(sim, PacketFramework, NValues=1, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Parameter1");
-   [sim, PacketFramework, par2]=ld_PF_Parameter(sim, PacketFramework, NValues=2, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Parameter2");
+   [sim, PacketFramework, AParVector]=ld_PF_Parameter(sim, PacketFramework, NValues=10, datatype=ORTD.DATATYPE_FLOAT, ParameterName="AParVector");
+//    [sim, PacketFramework, par2]=ld_PF_Parameter(sim, PacketFramework, NValues=2, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Parameter2");
 
   
-  [sim] = ld_printf(sim, ev, Input, "Oscillator input ", 1);
-  [sim] = ld_printf(sim, ev, par2, "Parameter2 ", 2);
+   [sim] = ld_printf(sim, ev, Input, "Oscillator input ", 1);
+//    [sim] = ld_printf(sim, ev, par2, "Parameter2 ", 2);
+
+   [sim] = ld_printf(sim, ev, AParVector, "AParVector ", 10);
+
+
 
   // The system to control
   T_a = 0.1; [sim, x,v] = damped_oscillator(sim, Input);
@@ -191,6 +95,8 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
   
    [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework);
    ld_PF_Export_js(PacketFramework, fname="ProtocollConfig.json");
+
+//    pause;
 
 //   // send
 //   [sim, Signal] = ld_mux(sim, 0, 2, list(x,v));

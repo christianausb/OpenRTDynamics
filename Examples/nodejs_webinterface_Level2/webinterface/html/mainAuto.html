@@ -46,9 +46,11 @@
               
             } catch (err) { ; }
             
-            htmlcode = htmlcode + '<input type="button" id="UploadParameters" value="Upload Parameters" onClick="UploadParameters("'+key+'");">';
+            htmlcode = htmlcode + '<input type="button" id="UploadParameters" value="Upload Parameters" onClick="UploadParameters('+key+');">';
             
             htmlcode = htmlcode + ' <br><br> ';
+
+            console.log(htmlcode);
           }
           
 //           htmlcode = JSON.stringify(ParametersConfig  );
@@ -102,7 +104,7 @@
 //       var p1_float = parseFloat(p1.replace(",", ".")); ParSet[0] = p1_float;
 
 
-      socket.emit('ChangeParam_Set', ParSet);
+      socket.emit('ChangeParam_Set', [ParameterID, ParSet] );
     }
 
     </script>
@@ -110,14 +112,6 @@
  
 <body>
     <strong>GUI-interface to ORTD-simulation</strong>
-      <br>
-    Parameter 1:
-    <input name="Parameter1" id="Parameter1" type="text" size="20" maxlength="20" value="2.43">
-      <br>
-    Parameter 2:
-    <input name="Parameter2" id="Parameter2" type="text" size="20" maxlength="20" value="0.00">
-      <br>
-    <input type="button" name="UploadParameters" id="UploadParameters" value="Upload Parameters" onClick="UploadParameters();">
 
   <br><br>
 
