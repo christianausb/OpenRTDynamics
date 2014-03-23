@@ -6,6 +6,20 @@
         var ProtocollConfig;
         var socket = io.connect();
        
+	function GetParameterID(ParametersConfig, ParameterName)
+	{
+	  var P = ParametersConfig;
+	  for (key in P) {
+	    if (P[key].ParameterName == ParameterName) {
+	      return key;
+	    }    
+	  }
+	  return -1;
+	}
+
+	// console.log(  GetParameterID(ProtocollConfig.ParametersConfig, "Parameter2") );
+
+
         socket.on('ProtocollConfig', function (ProtocollConfig__) { 
           // received the protocoll definition
           ProtocollConfig = ProtocollConfig__;

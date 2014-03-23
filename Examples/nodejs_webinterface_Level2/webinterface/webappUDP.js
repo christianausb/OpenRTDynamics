@@ -59,6 +59,22 @@ var RingBuffer = new RingBuffer(DataBufferSize, NValues);
 console.log("RingBuffer created");
 
 
+
+  // console.log(P.length);
+
+function GetParameterID(ParametersConfig, ParameterName)
+{
+  var P = ParametersConfig;
+  for (key in P) {
+    if (P[key].ParameterName == ParameterName) {
+      return key;
+    }    
+  }
+  return -1;
+}
+
+console.log(  GetParameterID(ProtocollConfig.ParametersConfig, "Parameter2") );
+
 // 
 // http-server
 // 
@@ -134,8 +150,8 @@ server.on('message', function (message, remote) {
 
       // get popoerties of this packet source
       SourceProperties = ProtocollConfig.SourcesConfig[SourceID]
-      console.log( 'SourceProperties: ');
-      console.log(  SourceProperties );
+//       console.log( 'SourceProperties: ');
+//       console.log(  SourceProperties );
       
       if (SourceProperties.datatype != 257) // ORTD.DATATYPE_FLOAT
 	throw 2;
@@ -146,7 +162,7 @@ server.on('message', function (message, remote) {
       if ( message.length != 12+8*SourceProperties.NValues_send) 
         throw 2;
 
-      console.log('Disasm data '+ SourceProperties.NValues_send);
+//       console.log('Disasm data '+ SourceProperties.NValues_send);
       
       // disassemble data-values
       var ValuesBuffer = message.slice(12, 12+8*SourceProperties.NValues_send);

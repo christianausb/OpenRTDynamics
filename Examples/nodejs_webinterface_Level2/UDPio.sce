@@ -75,12 +75,11 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
 
    [sim, PacketFramework, Input]=ld_PF_Parameter(sim, PacketFramework, NValues=1, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Parameter1");
    [sim, PacketFramework, AParVector]=ld_PF_Parameter(sim, PacketFramework, NValues=10, datatype=ORTD.DATATYPE_FLOAT, ParameterName="AParVector");
-//    [sim, PacketFramework, par2]=ld_PF_Parameter(sim, PacketFramework, NValues=2, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Parameter2");
+   [sim, PacketFramework, par2]=ld_PF_Parameter(sim, PacketFramework, NValues=2, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Parameter2");
 
   
    [sim] = ld_printf(sim, ev, Input, "Oscillator input ", 1);
-//    [sim] = ld_printf(sim, ev, par2, "Parameter2 ", 2);
-
+   [sim] = ld_printf(sim, ev, par2, "Parameter2 ", 2);
    [sim] = ld_printf(sim, ev, AParVector, "AParVector ", 10);
 
 
@@ -98,10 +97,7 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
 
 //    pause;
 
-//   // send
-//   [sim, Signal] = ld_mux(sim, 0, 2, list(x,v));
-//   [sim]=SendUDP(sim, Signal, NValues_send=2);
-// 
+
   outlist = list();
 endfunction
 

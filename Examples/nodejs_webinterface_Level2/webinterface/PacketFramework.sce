@@ -2,8 +2,7 @@
 // 
 //   A packet based communication interface from ORTD using UDP datagrams to e.g.
 //   nodejs. 
-//   webappUDP.js is the counterpart that provides a web-interface to control 
-//   a oscillator-system in this example.
+//   webappUDP.js is the counterpart that provides a web-interface 
 // 
 // 
 
@@ -47,15 +46,10 @@ endfunction
 function [sim, PacketFramework, Parameter]=ld_PF_Parameter(sim, PacketFramework, NValues, datatype, ParameterName)
     [PacketFramework,ParameterID,MemoryOfs] = ld_PF_addparameter(PacketFramework, NValues, datatype, ParameterName);
    
-//     [sim, readI] = ld_const(sim, ev, MemoryOfs); // start at index 1
-//     [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory_"+ParameterName, ...
-// 						datatype, NValues);
-
+    // read data from global memory
     [sim, readI] = ld_const(sim, ev, MemoryOfs); // start at index 1
     [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory", ...
 						datatype, NValues);
-
-
 endfunction
 
 function [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal, NValues_send, datatype, SourceName)
@@ -76,10 +70,6 @@ function [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal, NVal
       [sim, SenderID] = ld_const(sim, ev, 1295793); // random number
       [sim, SenderID_int32] = ld_ceilInt32(sim, ev, SenderID);
 
-
-      // print data
-//       [sim] = ld_printf(sim, ev, Signal, "Signal to send = ", NValues_send);
-
       // make a binary structure
       [sim, Data, NBytes] = ld_ConcateData(sim, ev, ...
 			    inlist=list(SenderID_int32, Counter_int32, SourceID_int32, Signal ), insizes=[1,1,1,NValues_send], ...
@@ -96,40 +86,29 @@ function [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal, NVal
     endfunction
 
 
-
-
   [PacketFramework,SourceID] = ld_PF_addsource(PacketFramework, NValues_send, datatype, SourceName);
   [sim]=SendUDP(sim, Signal, PacketFramework.InstanceName, NValues_send, datatype, SourceID);
-  
 endfunction
 
 
 
 
 function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configuration)
-
-      
-//   Nvalues_recv = Configuration.Nvalues_recv;
-
   // initialise structure for sources
   PacketFramework.InstanceName = InstanceName;
-//   PacketFramework.Nvalues_recv = list(Nvalues_recv); // number of parameters TODO remove
   PacketFramework.Configuration = Configuration;
   
   // sources
   PacketFramework.SourceID_counter = 0;
   PacketFramework.Sources = list();
   
-  
   // parameters
   PacketFramework.Parameterid_counter = 0;
   PacketFramework.ParameterMemOfs_counter = 1; // start at the first index in the memory
   PacketFramework.Parameters = list();
-
 endfunction
 
 function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
-
 
       // The main real-time thread
       function [sim] = ld_PF_InitUDP(sim, InstanceName, ParameterMemory)
@@ -171,15 +150,7 @@ function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
   	    [sim] = ld_printf(sim, ev, memofs_ ,  "memofs                    = ", 1);
   	    [sim] = ld_printf(sim, ev, memofs_ ,  "Nelements                 = ", 1);
 
-
-
-
 	    // Store the input data into a shared memory
-// 	    [sim, one] = ld_const(sim, ev, 1);
-// 	    [sim] = ld_write_global_memory(sim, 0, data=DisAsm(4), index=memofs_, ...
-// 					  ident_str=InstanceName+"Memory", datatype=ORTD.DATATYPE_FLOAT, ...
-// 					  ElementsToWrite=Nvalues_recv);
-
 	    [sim] = ld_WriteMemory2(sim, 0, data=DisAsm(4), index=memofs, ElementsToWrite=Nelements, ...
 					  ident_str=InstanceName+"Memory", datatype=ORTD.DATATYPE_FLOAT, MaxElements=TotalElemetsPerPacket );
 
@@ -239,42 +210,13 @@ function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
   PacketFramework.ParameterMemory.MemoryOfs = MemoryOfs;
   PacketFramework.ParameterMemory.Sizes = Sizes;
 
-
+  // udp
   [sim] = ld_PF_InitUDP(sim, PacketFramework.InstanceName, PacketFramework.ParameterMemory);
-
-
-
-
-
-// TODO: remove below
-
-  // go through all parameters and create memories for all
-  for i=1:length(PacketFramework.Parameters)
-    
-    
-    ParameterID = PacketFramework.Parameters(i).ParameterID;
-    ParameterName =  PacketFramework.Parameters(i).ParameterName;
-    NValues = PacketFramework.Parameters(i).NValues;
-    datatype = PacketFramework.Parameters(i).datatype;
-    
-    printf("Creating memory for parameter %s \n",ParameterName );
-    disp(ParameterID );
-    disp(ParameterName);
-  
-
-    
-    	// initialise a global memory for storing the input data for the computation
-    ident_str=PacketFramework.InstanceName+"Memory_"+ParameterName;
-    
-	[sim] = ld_global_memory(sim, ev, ident_str, ... 
-				datatype, len=NValues, ...
-				initial_data=[zeros(NValues,1)], ... 
-				visibility='global', useMutex=1);
-				
-  end
 endfunction
 
 function ld_PF_Export_js(PacketFramework, fname)
+  // export configuration into JSON-format
+
    fd = mopen(fname,'wt');
   
    mfprintf(fd,' {""SourcesConfig"" : {\n');
@@ -288,11 +230,6 @@ function ld_PF_Export_js(PacketFramework, fname)
     disp( SourceName );
       
       
-//      line=sprintf("%s : ""%s"", \n", string(PacketFramework.Sources(i).SourceID), string(PacketFramework.Sources(i).SourceName) );
-//      line=sprintf("%s : { ""%s"" , ""%s"", ""%s""  }, \n", string(PacketFramework.Sources(i).SourceID), ...
-//                string(PacketFramework.Sources(i).SourceName), ...
-//                string(PacketFramework.Sources(i).NValues_send), ...
-//                string(PacketFramework.Sources(i).datatype) );
      line=sprintf(" ""%s"" : { ""SourceName"" : ""%s"" , ""NValues_send"" : ""%s"", ""datatype"" : ""%s""  } \n", ...
                string(PacketFramework.Sources(i).SourceID), ...
                string(PacketFramework.Sources(i).SourceName), ...
@@ -301,7 +238,7 @@ function ld_PF_Export_js(PacketFramework, fname)
       
      
      if i==length(PacketFramework.Sources)
-       // finalise
+       // finalise the last entry without ","
        printf('%s \n' , line);
        mfprintf(fd,'%s', line);
      else
@@ -309,9 +246,7 @@ function ld_PF_Export_js(PacketFramework, fname)
        mfprintf(fd,'%s,', line);
      end
     
-//     pause;
-//      mprintf(fd, '%s', string(line) );
-//      mfprintf(fd,'%s', line);
+
   end
   
   
@@ -321,16 +256,8 @@ function ld_PF_Export_js(PacketFramework, fname)
    
   // go through all parameters and create memories for all
   for i=1:length(PacketFramework.Parameters)
-    
-    
-//     ParameterID = PacketFramework.Parameters(i).ParameterID;
-//     ParameterName =  PacketFramework.Parameters(i).ParameterName;
-//     NValues = PacketFramework.Parameters(i).NValues;
-//     datatype = PacketFramework.Parameters(i).datatype;
-    
+        
     printf("export of parameter %s \n",PacketFramework.Parameters(i).ParameterName );
-//     disp(ParameterID );
-//     disp(ParameterName);
 
      line=sprintf(" ""%s"" : { ""ParameterName"" : ""%s"" , ""NValues"" : ""%s"", ""datatype"" : ""%s""  } \n", ...
                string(PacketFramework.Parameters(i).ParameterID), ...
@@ -339,8 +266,8 @@ function ld_PF_Export_js(PacketFramework, fname)
                string(PacketFramework.Parameters(i).datatype) );
       
      
-     if i==length(PacketFramework.Sources)
-       // finalise
+     if i==length(PacketFramework.Parameters) 
+       // finalise the last entry without ","
        printf('%s \n' , line);
        mfprintf(fd,'%s', line);
      else
@@ -360,35 +287,35 @@ endfunction
 
 
 
-
-
-// OBSOLETE
-function [sim, ParameterList] = ld_PF_GetParameters(sim, PacketFramework, Np)
-  // Read the parameters
-  
-  ParameterList = list();
-  
-  for i=1:Np
-  
-    [sim, readI] = ld_const(sim, ev, i); // start at index 1
-    [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory", ...
-						datatype=ORTD.DATATYPE_FLOAT, 1);
-
-//     [sim, readI] = ld_const(sim, ev, 2); // start at index 2
-//     [sim, Parameter2] = ld_read_global_memory(sim, ev, index=readI, ident_str="ParameterMemory", ...
+// 
+// 
+// // OBSOLETE
+// function [sim, ParameterList] = ld_PF_GetParameters(sim, PacketFramework, Np)
+//   // Read the parameters
+//   
+//   ParameterList = list();
+//   
+//   for i=1:Np
+//   
+//     [sim, readI] = ld_const(sim, ev, i); // start at index 1
+//     [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory", ...
 // 						datatype=ORTD.DATATYPE_FLOAT, 1);
 // 
-    
-    [sim] = ld_printf(sim, ev, Parameter, "Parameter " + string(i) + " ", 1);
-//     [sim] = ld_printf(sim, ev, Parameter2, "Parameter2 ", 1);
-
-    ParameterList(i) = Parameter
-  end
-  
-  //ParameterList = list(Parameter1, Parameter2);
-
-endfunction
-
+// //     [sim, readI] = ld_const(sim, ev, 2); // start at index 2
+// //     [sim, Parameter2] = ld_read_global_memory(sim, ev, index=readI, ident_str="ParameterMemory", ...
+// // 						datatype=ORTD.DATATYPE_FLOAT, 1);
+// // 
+//     
+//     [sim] = ld_printf(sim, ev, Parameter, "Parameter " + string(i) + " ", 1);
+// //     [sim] = ld_printf(sim, ev, Parameter2, "Parameter2 ", 1);
+// 
+//     ParameterList(i) = Parameter
+//   end
+//   
+//   //ParameterList = list(Parameter1, Parameter2);
+// 
+// endfunction
+// 
 
 
 
