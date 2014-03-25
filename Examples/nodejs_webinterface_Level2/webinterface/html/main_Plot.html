@@ -1,8 +1,123 @@
 <html>
 <head>
+
+
+
+    <div id="Plot"></div>
+
     <script src = "/socket.io/socket.io.js" > </script>
     <script type=text/javascript src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
-    <script>
+
+    <script src="http://d3lp1msu2r81bx.cloudfront.net/kjs/js/lib/kinetic-v5.0.1.min.js"></script>
+
+    <script defer="defer">
+/*
+   Create plot
+*/
+
+
+//       var stage = new Kinetic.Stage({
+//         container: 'Plot',
+//         width: 578,
+//         height: 200
+//       });
+// 
+//       var layer = new Kinetic.Layer();
+// 
+// 
+//       // complex dashed and dotted line
+//       var blueLine = new Kinetic.Line({
+//         points: [73, 70, 340, 23, 450, 60, 500, 20],
+//         stroke: 'blue',
+//         strokeWidth: 1,
+//         lineCap: 'round',
+//         lineJoin: 'round'
+//         /*
+//          * line segments with a length of 29px with a gap
+//          * of 20px followed by a line segment of 0.001px (a dot)
+//          * followed by a gap of 20px
+//          */
+//     
+//       });
+// 
+//    
+//       layer.add(blueLine);
+//       stage.add(layer);
+//       
+//       //blueLine.points = [13, 10, 340, 23, 450, 60, 500, 20];
+//       
+//       
+//        blueLine.points()[1] = 0;      
+//         layer.draw();
+//       
+//        function PlotDraw(Values) {
+// 	      blueLine.points()[1] = Values[0];
+// 	      blueLine.points()[3] = Values[0];
+// 	      layer.draw();
+//        }
+
+
+  function VectorPlotClass(container, Heigh, Width, Ny) {
+      this.container = container;
+      this.Ny = Ny; this.Width = Width; this.Heigh = Heigh;
+
+      this.stage = new Kinetic.Stage({
+        container: this.container,
+        width: this.Width,
+        height: this.Heigh
+      });
+
+      this.layer = new Kinetic.Layer();
+
+
+      // complex dashed and dotted line
+
+      var lp=[], i;
+      for (i = 0; i < this.Ny; i++) {
+        Y = this.Heigh/2 + 0*i*2; X=(this.Width/this.Ny) * i;
+        lp[2*i] = X;
+        lp[2*i + 1] = Y;
+      }
+      console.log(lp);
+      this.blueLine = new Kinetic.Line({
+//        points: [73, 70, 340, 23, 450, 60, 500, 20],
+        points: lp,
+        stroke: 'green',
+        strokeWidth: 3,
+        lineCap: 'round',
+        lineJoin: 'round'
+
+      });
+
+   
+      this.layer.add(this.blueLine);
+      this.stage.add(this.layer);
+      
+       this.PlotDraw = PlotDraw;
+       function PlotDraw(Values) {
+              var i;
+              for (i = 0; i < this.Ny; ++i) {
+                Y_norm = Values[0]; Y = Y_norm * ( this.Heigh / 2 ) + this.Heigh / 2;
+		this.blueLine.points()[  i*2+1 ] = Y;
+              }
+              this.layer.draw();
+       }
+
+  }
+
+  var Plot = new VectorPlotClass('Plot', 600, 578,  200);
+
+/*
+   communication
+*/
+
+
+
+
+
+
+
+
         var ProtocollConfig;
         var socket = io.connect();
        
@@ -96,6 +211,12 @@
 	    NValues = ProtocollConfig.SourcesConfig[data.SourceID].NValues_send;	     
 	    Values = data.Data;
 	    
+            // 
+            if (data.SourceID == 0) {
+              Plot.PlotDraw(Values);
+            }
+
+
 	    // Update the display for this source. Compose html code for the Display to print the data
 	    var htmlcode, i;
 	    htmlcode = '#'+NValues+'<br>';
@@ -133,6 +254,11 @@
       socket.emit('ChangeParam_Set', [ParameterID, ParSet] );
     }
 
+
+
+
+
+
     </script>
 </head> 
  
@@ -147,6 +273,29 @@
   <strong>Parameters:</strong> <div id="Parameters">0</div>
   
   <strong>Displays:</strong> <div id="Displays">0</div>
+
+
+
+
+
+
+
+
+
+
+
+
+    <script defer="defer">
+
+      
+    </script>
+
+
+
+
+
+
+
 
 
 </body>
