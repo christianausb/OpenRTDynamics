@@ -4,6 +4,9 @@
 //   nodejs. 
 //   webappUDP.js is the counterpart that provides a web-interface 
 // 
+// Versions:
+// 
+// 27.3.14 - possibility to reservate sources
 // 
 
 
@@ -52,42 +55,43 @@ function [sim, PacketFramework, Parameter]=ld_PF_Parameter(sim, PacketFramework,
 						datatype, NValues);
 endfunction
 
+
+
+
+// Send a signal via UDP, a simple protocoll is defined, internal function
+function [sim]=ld_PF_ISendUDP(sim, Signal, InstanceName, NValues_send, datatype, SourceID)
+  [sim,one] = ld_const(sim, 0, 1);
+
+  // Packet counter, so the order of the network packages can be determined
+  [sim, Counter] = ld_modcounter(sim, ev, in=one, initial_count=0, mod=100000);
+  [sim, Counter_int32] = ld_ceilInt32(sim, ev, Counter);
+
+  // Source ID
+  [sim, SourceID] = ld_const(sim, ev, SourceID);
+  [sim, SourceID_int32] = ld_ceilInt32(sim, ev, SourceID);
+
+  // Sender ID
+  [sim, SenderID] = ld_const(sim, ev, 1295793); // random number
+  [sim, SenderID_int32] = ld_ceilInt32(sim, ev, SenderID);
+
+  // make a binary structure
+  [sim, Data, NBytes] = ld_ConcateData(sim, ev, ...
+			inlist=list(SenderID_int32, Counter_int32, SourceID_int32, Signal ), insizes=[1,1,1,NValues_send], ...
+			intypes=[ ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, datatype ] );
+
+  printf("The size of the UDP-packets will be %d bytes.\n", NBytes);
+
+  // send to the network 
+  [sim, NBytes__] = ld_constvecInt32(sim, ev, vec=NBytes); // the number of bytes that are actually send is dynamic, but must be smaller or equal to 
+  [sim] = ld_UDPSocket_SendTo(sim, ev, SendSize=NBytes__, ObjectIdentifyer=InstanceName+"aSocket", ...
+			      hostname="127.0.0.1", UDPPort=20000, in=Data, ...
+			      insize=NBytes);
+
+endfunction
+
 function [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal, NValues_send, datatype, SourceName)
-
-    // Send a signal via UDP, a simple protocoll is defined
-    function [sim]=SendUDP(sim, Signal, InstanceName, NValues_send, datatype, SourceID)
-      [sim,one] = ld_const(sim, 0, 1);
-
-      // Packet counter, so the order of the network packages can be determined
-      [sim, Counter] = ld_modcounter(sim, ev, in=one, initial_count=0, mod=100000);
-      [sim, Counter_int32] = ld_ceilInt32(sim, ev, Counter);
-
-      // Source ID
-      [sim, SourceID] = ld_const(sim, ev, SourceID);
-      [sim, SourceID_int32] = ld_ceilInt32(sim, ev, SourceID);
-
-      // Sender ID
-      [sim, SenderID] = ld_const(sim, ev, 1295793); // random number
-      [sim, SenderID_int32] = ld_ceilInt32(sim, ev, SenderID);
-
-      // make a binary structure
-      [sim, Data, NBytes] = ld_ConcateData(sim, ev, ...
-			    inlist=list(SenderID_int32, Counter_int32, SourceID_int32, Signal ), insizes=[1,1,1,NValues_send], ...
-			    intypes=[ ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, ORTD.DATATYPE_INT32, datatype ] );
-
-      printf("The size of the UDP-packets will be %d bytes.\n", NBytes);
-
-      // send to the network 
-      [sim, NBytes__] = ld_constvecInt32(sim, ev, vec=NBytes); // the number of bytes that are actually send is dynamic, but must be smaller or equal to 
-      [sim] = ld_UDPSocket_SendTo(sim, ev, SendSize=NBytes__, ObjectIdentifyer=InstanceName+"aSocket", ...
-				  hostname="127.0.0.1", UDPPort=20000, in=Data, ...
-				  insize=NBytes);
-
-    endfunction
-
-
   [PacketFramework,SourceID] = ld_PF_addsource(PacketFramework, NValues_send, datatype, SourceName);
-  [sim]=SendUDP(sim, Signal, PacketFramework.InstanceName, NValues_send, datatype, SourceID);
+  [sim]=ld_PF_ISendUDP(sim, Signal, PacketFramework.InstanceName, NValues_send, datatype, SourceID);
 endfunction
 
 
@@ -283,40 +287,61 @@ function ld_PF_Export_js(PacketFramework, fname)
   mclose(fd);
 endfunction
 
-
-
-
-
 // 
-// 
-// // OBSOLETE
-// function [sim, ParameterList] = ld_PF_GetParameters(sim, PacketFramework, Np)
-//   // Read the parameters
-//   
-//   ParameterList = list();
-//   
-//   for i=1:Np
-//   
-//     [sim, readI] = ld_const(sim, ev, i); // start at index 1
-//     [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory", ...
-// 						datatype=ORTD.DATATYPE_FLOAT, 1);
-// 
-// //     [sim, readI] = ld_const(sim, ev, 2); // start at index 2
-// //     [sim, Parameter2] = ld_read_global_memory(sim, ev, index=readI, ident_str="ParameterMemory", ...
-// // 						datatype=ORTD.DATATYPE_FLOAT, 1);
-// // 
-//     
-//     [sim] = ld_printf(sim, ev, Parameter, "Parameter " + string(i) + " ", 1);
-// //     [sim] = ld_printf(sim, ev, Parameter2, "Parameter2 ", 1);
-// 
-//     ParameterList(i) = Parameter
-//   end
-//   
-//   //ParameterList = list(Parameter1, Parameter2);
-// 
-// endfunction
+// Added 27.3.14
 // 
 
+function [sim, PacketFramework]=ld_SendPacketReserve(sim, PacketFramework, NValues_send, datatype, SourceName)
+  [PacketFramework,SourceID] = ld_PF_addsource(PacketFramework, NValues_send, datatype, SourceName);
+endfunction
+
+function [sim, PacketFramework]=ld_SendPacket2(sim, PacketFramework, Signal, SourceName)
+  // find Sourcename
+  index  = -1;
+  for i=1:length(PacketFramework.Sources)
+    S = PacketFramework.Sources(i);
+    if S.SourceName == SourceName
+      index = i;
+      printf(" %s found at index %d Nvalues %d\n", SourceName, index, S.NValues_send);
+      break;
+    end
+  end
+
+  if index == -1
+    printf("SourceName = %s\n", SourceName);
+    error("SourceName not found! This source must be reservated using ld_SendPacketReserve");
+  end
+
+  [sim]=ld_PF_ISendUDP(sim, Signal, PacketFramework.InstanceName, S.NValues_send, S.datatype, S.SourceID);
+endfunction
 
 
+
+function [sim, PacketFramework]=ld_PF_ParameterReserve(sim, PacketFramework, NValues, datatype, ParameterName)
+    [PacketFramework,ParameterID,MemoryOfs] = ld_PF_addparameter(PacketFramework, NValues, datatype, ParameterName);   
+endfunction
+
+
+function [sim, PacketFramework, Parameter]=ld_PF_Parameter2(sim, PacketFramework, ParameterName)
+  // find Sourcename
+  index  = -1;
+  for i=1:length(PacketFramework.Parameters)
+    P = PacketFramework.Parameters(i);
+    if P.ParameterName == ParameterName
+      index = i;
+      printf(" %s found at index %d Nvalues %d\n", ParameterName, index, P.NValues);
+      break;
+    end
+  end
+
+  if index == -1
+    printf("ParameterName = %s\n", ParameterName);
+    error("ParameterName not found! This source must be reservated using ld_PF_ParameterReserve");
+  end
+   
+  // read data from global memory
+  [sim, readI] = ld_const(sim, ev, P.MemoryOfs); // start at index 1
+  [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory", ...
+                                           P.datatype, P.NValues);
+endfunction
 
