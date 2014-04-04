@@ -7,6 +7,8 @@
 // Versions:
 // 
 // 27.3.14 - possibility to reservate sources
+// 3.4.14  - small re-arrangements
+// 4.4.13  - Bugfixes
 // 
 
 
@@ -59,7 +61,8 @@ endfunction
 
 
 // Send a signal via UDP, a simple protocoll is defined, internal function
-function [sim]=ld_PF_ISendUDP(sim, Signal, InstanceName, NValues_send, datatype, SourceID)
+function [sim]=ld_PF_ISendUDP(sim, PacketFramework, Signal, NValues_send, datatype, SourceID)
+  InstanceName = PacketFramework.InstanceName;
   [sim,one] = ld_const(sim, 0, 1);
 
   // Packet counter, so the order of the network packages can be determined
@@ -84,24 +87,40 @@ function [sim]=ld_PF_ISendUDP(sim, Signal, InstanceName, NValues_send, datatype,
   // send to the network 
   [sim, NBytes__] = ld_constvecInt32(sim, ev, vec=NBytes); // the number of bytes that are actually send is dynamic, but must be smaller or equal to 
   [sim] = ld_UDPSocket_SendTo(sim, ev, SendSize=NBytes__, ObjectIdentifyer=InstanceName+"aSocket", ...
-			      hostname="127.0.0.1", UDPPort=20000, in=Data, ...
+			      hostname=PacketFramework.Configuration.DestHost, ...
+                              UDPPort=PacketFramework.Configuration.DestPort, in=Data, ...
 			      insize=NBytes);
 
 endfunction
 
 function [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal, NValues_send, datatype, SourceName)
   [PacketFramework,SourceID] = ld_PF_addsource(PacketFramework, NValues_send, datatype, SourceName);
-  [sim]=ld_PF_ISendUDP(sim, Signal, PacketFramework.InstanceName, NValues_send, datatype, SourceID);
+  [sim]=ld_PF_ISendUDP(sim, PacketFramework, Signal, NValues_send, datatype, SourceID);
 endfunction
 
 
 
 
 function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configuration)
+// 
+//   Configuration must include the following properties:
+// 
+//   Configuration.DestHost
+//   Configuration.DestPort
+//   Configuration.LocalSocketHost
+//   Configuration.LocalSocketPort
+// 
+
   // initialise structure for sources
   PacketFramework.InstanceName = InstanceName;
   PacketFramework.Configuration = Configuration;
-  
+
+  PacketFramework.Configuration.debugmode = %F;
+
+  // possible packet sizes for UDP
+  PacketFramework.TotalElemetsPerPacket = floor((1400-3*4)/8); // number of doubles values that fit into one UDP-packet with maximal size of 1400 bytes
+  PacketFramework.PacketSize = PacketFramework.TotalElemetsPerPacket*8 + 3*4;
+
   // sources
   PacketFramework.SourceID_counter = 0;
   PacketFramework.Sources = list();
@@ -138,21 +157,23 @@ function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
 	    [sim, DisAsm_(2)] = ld_Int32ToFloat(sim, ev, DisAsm(2) );
 	    [sim, DisAsm_(3)] = ld_Int32ToFloat(sim, ev, DisAsm(3) );
 
-	    // print the contents
-	    [sim] = ld_printf(sim, ev, DisAsm_(1), "DisAsm(1) (SenderID)       = ", 1);
-	    [sim] = ld_printf(sim, ev, DisAsm_(2), "DisAsm(2) (Packet Counter) = ", 1);
-	    [sim] = ld_printf(sim, ev, DisAsm_(3), "DisAsm(3) (SourceID)       = ", 1);
-	    [sim] = ld_printf(sim, ev, DisAsm_(4), "DisAsm(4) (Signal)         = ", TotalElemetsPerPacket);
-
-
 
             [sim, memofs] = ld_ArrayInt32(sim, 0, array=ParameterMemory.MemoryOfs, in=DisAsm(3) );
             [sim, Nelements] = ld_ArrayInt32(sim, 0, array=ParameterMemory.Sizes, in=DisAsm(3) );
 
  	    [sim, memofs_] = ld_Int32ToFloat(sim, ev, memofs );
  	    [sim, Nelements_] = ld_Int32ToFloat(sim, ev, Nelements );
-  	    [sim] = ld_printf(sim, ev, memofs_ ,  "memofs                    = ", 1);
-  	    [sim] = ld_printf(sim, ev, memofs_ ,  "Nelements                 = ", 1);
+
+            if PacketFramework.Configuration.debugmode then 
+	      // print the contents of the packet
+	      [sim] = ld_printf(sim, ev, DisAsm_(1), "DisAsm(1) (SenderID)       = ", 1);
+	      [sim] = ld_printf(sim, ev, DisAsm_(2), "DisAsm(2) (Packet Counter) = ", 1);
+	      [sim] = ld_printf(sim, ev, DisAsm_(3), "DisAsm(3) (SourceID)       = ", 1);
+	      [sim] = ld_printf(sim, ev, DisAsm_(4), "DisAsm(4) (Signal)         = ", TotalElemetsPerPacket);
+
+	      [sim] = ld_printf(sim, ev, memofs_ ,  "memofs                    = ", 1);
+	      [sim] = ld_printf(sim, ev, memofs_ ,  "Nelements                 = ", 1);
+            end
 
 	    // Store the input data into a shared memory
 	    [sim] = ld_WriteMemory2(sim, 0, data=DisAsm(4), index=memofs, ElementsToWrite=Nelements, ...
@@ -170,11 +191,13 @@ function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
 	//[sim, out] = ld_startproc2(sim, 0, exepath="./webappUDP.sh", chpwd="webinterface", prio=0, whentorun=0);
 	
         TotalMemorySize = sum(PacketFramework.ParameterMemory.Sizes);
-        TotalElemetsPerPacket = floor((1400-3*4)/8); // number of doubles values that fit into one UDP-packet with maximal size of 1400 bytes
-        PacketSize = TotalElemetsPerPacket*8 + 3*4;
+        TotalElemetsPerPacket = PacketFramework.TotalElemetsPerPacket; // number of doubles values that fit into one UDP-packet with maximal size of 1400 bytes
+        PacketSize = PacketFramework.PacketSize;
 
 	// Open an UDP-Port in server mode
-	[sim] = ld_UDPSocket_shObj(sim, ev, ObjectIdentifyer=InstanceName+"aSocket", Visibility=0, hostname="127.0.0.1", UDPPort=20001);
+	[sim] = ld_UDPSocket_shObj(sim, ev, ObjectIdentifyer=InstanceName+"aSocket", Visibility=0, ...
+                                  hostname=PacketFramework.Configuration.LocalSocketHost, ...
+                                  UDPPort=PacketFramework.Configuration.LocalSocketPort);
 
 	// initialise a global memory for storing the input data for the computation
 	[sim] = ld_global_memory(sim, ev, ident_str=InstanceName+"Memory", ... 
@@ -291,7 +314,7 @@ endfunction
 // Added 27.3.14
 // 
 
-function [sim, PacketFramework]=ld_SendPacketReserve(sim, PacketFramework, NValues_send, datatype, SourceName)
+function [sim, PacketFramework, SourceID]=ld_SendPacketReserve(sim, PacketFramework, NValues_send, datatype, SourceName)
   [PacketFramework,SourceID] = ld_PF_addsource(PacketFramework, NValues_send, datatype, SourceName);
 endfunction
 
@@ -312,12 +335,12 @@ function [sim, PacketFramework]=ld_SendPacket2(sim, PacketFramework, Signal, Sou
     error("SourceName not found! This source must be reservated using ld_SendPacketReserve");
   end
 
-  [sim]=ld_PF_ISendUDP(sim, Signal, PacketFramework.InstanceName, S.NValues_send, S.datatype, S.SourceID);
+  [sim]=ld_PF_ISendUDP(sim, PacketFramework, Signal, PacketFramework.InstanceName, S.NValues_send, S.datatype, S.SourceID);
 endfunction
 
 
 
-function [sim, PacketFramework]=ld_PF_ParameterReserve(sim, PacketFramework, NValues, datatype, ParameterName)
+function [sim, PacketFramework, ParameterID]=ld_PF_ParameterReserve(sim, PacketFramework, NValues, datatype, ParameterName)
     [PacketFramework,ParameterID,MemoryOfs] = ld_PF_addparameter(PacketFramework, NValues, datatype, ParameterName);   
 endfunction
 
