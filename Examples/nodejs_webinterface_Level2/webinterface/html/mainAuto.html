@@ -1,7 +1,7 @@
 <html>
 <head>
     <script src = "/socket.io/socket.io.js" > </script>
-    <script type=text/javascript src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+    <script type=text/javascript src="/lib/jquery-1.7.1.min.js"></script>
     <script>
         var ProtocollConfig;
         var socket = io.connect();
@@ -137,17 +137,19 @@
 </head> 
  
 <body>
-    <strong>GUI-interface to ORTD-simulation</strong>
+  <strong>Generic GUI-interface to an ORTD-simulation</strong>
 
-  <br><br>
+  <br>
+  This is a generic interface to ORTD. All parameters and datasources are automatically shown. Feel free to copy and adapt it to your needs to build you own specialised web-interface.
 
-  <strong>ProtocollConfiguration:</strong> <div id="ProtocollConfiguration">0</div>
   <br><br>
   
   <strong>Parameters:</strong> <div id="Parameters">0</div>
   
   <strong>Displays:</strong> <div id="Displays">0</div>
 
+  <br><br>
+  <strong>ProtocollConfiguration:</strong> <div id="ProtocollConfiguration">0</div>
 
 </body>
 </html>

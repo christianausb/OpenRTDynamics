@@ -4,11 +4,14 @@
 //   nodejs. 
 //   webappUDP.js is the counterpart that provides a web-interface 
 // 
+// Current Rev: 5
+// 
 // Versions:
 // 
 // 27.3.14 - possibility to reservate sources
 // 3.4.14  - small re-arrangements
 // 4.4.13  - Bugfixes
+// 7.4.13  - Bugfix
 // 
 
 
@@ -48,7 +51,17 @@ function [PacketFramework,ParameterID,MemoryOfs] = ld_PF_addparameter(PacketFram
   MemoryOfs = Parameter.MemoryOfs;
 endfunction
 
-function [sim, PacketFramework, Parameter]=ld_PF_Parameter(sim, PacketFramework, NValues, datatype, ParameterName)
+function [sim, PacketFramework, Parameter] = ld_PF_Parameter(sim, PacketFramework, NValues, datatype, ParameterName) // PARSEDOCU_BLOCK
+// 
+// Define a parameter
+// 
+// NValues - amount of data sets
+// datatype - only ORTD.DATATYPE_FLOAT for now
+// ParameterName - a unique string decribing the parameter
+// 
+// 
+// 
+
     [PacketFramework,ParameterID,MemoryOfs] = ld_PF_addparameter(PacketFramework, NValues, datatype, ParameterName);
    
     // read data from global memory
@@ -61,7 +74,7 @@ endfunction
 
 
 // Send a signal via UDP, a simple protocoll is defined, internal function
-function [sim]=ld_PF_ISendUDP(sim, PacketFramework, Signal, NValues_send, datatype, SourceID)
+function [sim] = ld_PF_ISendUDP(sim, PacketFramework, Signal, NValues_send, datatype, SourceID)
   InstanceName = PacketFramework.InstanceName;
   [sim,one] = ld_const(sim, 0, 1);
 
@@ -93,7 +106,18 @@ function [sim]=ld_PF_ISendUDP(sim, PacketFramework, Signal, NValues_send, dataty
 
 endfunction
 
-function [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal, NValues_send, datatype, SourceName)
+function [sim, PacketFramework] = ld_SendPacket(sim, PacketFramework, Signal, NValues_send, datatype, SourceName) // PARSEDOCU_BLOCK // PARSEDOCU_BLOCK
+// 
+// Stream data - block
+// 
+// Signal - the signal to stream
+// NValues_send - the vector length of Signal
+// datatype - only ORTD.DATATYPE_FLOAT by now
+// SourceName - a unique string identifier descring the stream
+// 
+// 
+// 
+
   [PacketFramework,SourceID] = ld_PF_addsource(PacketFramework, NValues_send, datatype, SourceName);
   [sim]=ld_PF_ISendUDP(sim, PacketFramework, Signal, NValues_send, datatype, SourceID);
 endfunction
@@ -101,14 +125,34 @@ endfunction
 
 
 
-function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configuration)
+function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configuration) // PARSEDOCU_BLOCK
 // 
-//   Configuration must include the following properties:
+// Initialise an instance of the Packet Framework
+//   
+// InstanceName - a unique string identifier for the instance
+// Configuration must include the following properties:
 // 
+//   Configuration.UnderlyingProtocoll = "UDP"
 //   Configuration.DestHost
 //   Configuration.DestPort
 //   Configuration.LocalSocketHost
 //   Configuration.LocalSocketPort
+// 
+// 
+// Example:
+// 
+// 
+//   Configuration.UnderlyingProtocoll = "UDP";
+//   Configuration.DestHost = "127.0.0.1";
+//   Configuration.DestPort = 20000;
+//   Configuration.LocalSocketHost = "127.0.0.1";
+//   Configuration.LocalSocketPort = 20001;
+//   [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName="UDPCommunication", Configuration);
+// 
+// 
+// 
+// Also consider the file webappUDP.js as the counterpart that communicates to ORTD-simulations
+// 
 // 
 
   // initialise structure for sources
@@ -116,6 +160,14 @@ function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configur
   PacketFramework.Configuration = Configuration;
 
   PacketFramework.Configuration.debugmode = %F;
+
+//   disp(Configuration.UnderlyingProtocoll)
+
+  if Configuration.UnderlyingProtocoll == 'UDP'
+    null;
+  else
+    error("PacketFramework: Only UDP supported up to now");
+  end
 
   // possible packet sizes for UDP
   PacketFramework.TotalElemetsPerPacket = floor((1400-3*4)/8); // number of doubles values that fit into one UDP-packet with maximal size of 1400 bytes
@@ -131,7 +183,11 @@ function [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName, Configur
   PacketFramework.Parameters = list();
 endfunction
 
-function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
+function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework) // PARSEDOCU_BLOCK
+// 
+// Finalise the instance.
+// 
+// 
 
       // The main real-time thread
       function [sim] = ld_PF_InitUDP(sim, InstanceName, ParameterMemory)
@@ -241,8 +297,16 @@ function [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework)
   [sim] = ld_PF_InitUDP(sim, PacketFramework.InstanceName, PacketFramework.ParameterMemory);
 endfunction
 
-function ld_PF_Export_js(PacketFramework, fname)
-  // export configuration into JSON-format
+function ld_PF_Export_js(PacketFramework, fname) // PARSEDOCU_BLOCK
+// 
+// Export configuration of the defined protocoll (Sources, Parameters) 
+// into JSON-format. This is to be used by software that shall communicate 
+// to the real-time system.
+// 
+// fname - The file name
+// 
+// 
+
 
    fd = mopen(fname,'wt');
   
@@ -335,7 +399,7 @@ function [sim, PacketFramework]=ld_SendPacket2(sim, PacketFramework, Signal, Sou
     error("SourceName not found! This source must be reservated using ld_SendPacketReserve");
   end
 
-  [sim]=ld_PF_ISendUDP(sim, PacketFramework, Signal, PacketFramework.InstanceName, S.NValues_send, S.datatype, S.SourceID);
+  [sim]=ld_PF_ISendUDP(sim, PacketFramework, Signal, S.NValues_send, S.datatype, S.SourceID);
 endfunction
 
 
@@ -367,4 +431,6 @@ function [sim, PacketFramework, Parameter]=ld_PF_Parameter2(sim, PacketFramework
   [sim, Parameter] = ld_read_global_memory(sim, ev, index=readI, ident_str=PacketFramework.InstanceName+"Memory", ...
                                            P.datatype, P.NValues);
 endfunction
+
+
 

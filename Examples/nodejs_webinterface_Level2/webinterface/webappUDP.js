@@ -1,16 +1,19 @@
 /*
 
-  Sample communication interface to ORTD using UDP datagrams.
-  A web-interface is provided, go to http://localhost:8090
-  UDPio.sce is the counterpart whose simulation can be controlled
-  via the web-interface.
-  The web-interface is defined in html/main.html
+  node.js interface to ORTD using UDP datagrams and the packet framework.
+  A web-interface is provided at e.g. http://localhost:8091/mainAuto.html,
+  however currently not passwort protected.
+  The web-interface(s) are defined in html/*
+  
+  You can adapt the html files to your need and also created new ones
+  to e.g. set-up an individual interface to your application
+  
+  Rev 2
   
 */
 
 // http-server config
 var HTTPPORT = 8091;
-// var HiddenWebDir = "pwd63856";
 
 // UDP config
 var PORT = 20000;
@@ -20,9 +23,6 @@ var ORTD_PORT = 20001;
 
 var NValues = 7; // must be the same as NValues_send defined in UDPio.sce when calling UDPSend
 var DataBufferSize = 20000; // Number of elementes stored in the ringbuffer
-// var NParameters = 6;
-
-
 
 
 
@@ -45,11 +45,6 @@ var dgram = require('dgram');
 
 var ProtocollConfig = require('../ProtocollConfig.json');
 console.log(ProtocollConfig);
-
-// $.getJSON("SourcesConfig.json", function(json) {
-//     console.log(json); // this will show the info it in firebug console
-// });
-
 
 // 
 // RingBuffer

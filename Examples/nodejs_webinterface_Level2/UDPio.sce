@@ -2,15 +2,21 @@
 // 
 //   Example for a communication interface from ORTD using UDP datagrams to e.g.
 //   nodejs. 
-//   webappUDP.js is the counterpart that provides a web-interface to control 
-//   a oscillator-system in this example.
+//   The file webinterface/webappUDP.js is the counterpart that provides a 
+//   web-interface to control a oscillator-system in this example.
+//   
+//   For more details, please consider the readme-file.
 // 
+//   Rev 1
 // 
 
 // The name of the program
 ProgramName = 'UDPio'; // must be the filename without .sce
 
-exec('webinterface/PacketFramework.sce');
+// The following code is integrated into ORTD since rev 494.
+// Thus the following line is commented.
+
+// exec('webinterface/PacketFramework.sce');
 
 
 // And example-system that is controlled via UDP and one step further with the Web-gui
@@ -60,42 +66,37 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
   //
 
 
-
-   Nvalues_recv = 2;
-   
-   Configuration.Nvalues_recv = Nvalues_recv;
+   Configuration.UnderlyingProtocoll = "UDP";
    Configuration.DestHost = "127.0.0.1";
    Configuration.DestPort = 20000;
    Configuration.LocalSocketHost = "127.0.0.1";
    Configuration.LocalSocketPort = 20001;
    [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName="TrockenofenRemoteControl", Configuration)
 
+   // Add a parameter for controlling the oscillator
+   [sim, PacketFramework, Input]=ld_PF_Parameter(sim, PacketFramework, NValues=1, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Oscillator input");
 
-//    [sim, ParameterList] = ld_PF_GetParameters(sim, PacketFramework, Np=Nvalues_recv);
+   // some some more parameters
+   [sim, PacketFramework, AParVector]=ld_PF_Parameter(sim, PacketFramework, NValues=10, datatype=ORTD.DATATYPE_FLOAT, ParameterName="A vectorial parameter");
+   [sim, PacketFramework, par2]=ld_PF_Parameter(sim, PacketFramework, NValues=2, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Test");
 
-   [sim, PacketFramework, Input]=ld_PF_Parameter(sim, PacketFramework, NValues=1, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Parameter1");
-   [sim, PacketFramework, AParVector]=ld_PF_Parameter(sim, PacketFramework, NValues=10, datatype=ORTD.DATATYPE_FLOAT, ParameterName="AParVector");
-   [sim, PacketFramework, par2]=ld_PF_Parameter(sim, PacketFramework, NValues=2, datatype=ORTD.DATATYPE_FLOAT, ParameterName="Parameter2");
-
-  
+   // printf these parameters
    [sim] = ld_printf(sim, ev, Input, "Oscillator input ", 1);
-   [sim] = ld_printf(sim, ev, par2, "Parameter2 ", 2);
-   [sim] = ld_printf(sim, ev, AParVector, "AParVector ", 10);
+   [sim] = ld_printf(sim, ev, par2, "Test ", 2);
+   [sim] = ld_printf(sim, ev, AParVector, "A vectorial parameter", 10);
 
 
 
   // The system to control
   T_a = 0.1; [sim, x,v] = damped_oscillator(sim, Input);
 
-
+  // Stream the data of the oscillator
   [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal=x, NValues_send=1, datatype=ORTD.DATATYPE_FLOAT, SourceName="X")
   [sim, PacketFramework]=ld_SendPacket(sim, PacketFramework, Signal=v, NValues_send=1, datatype=ORTD.DATATYPE_FLOAT, SourceName="V")
   
-  
-   [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework);
-   ld_PF_Export_js(PacketFramework, fname="ProtocollConfig.json");
-
-//    pause;
+  // finalise the communication interface
+  [sim,PacketFramework] = ld_PF_Finalise(sim,PacketFramework);
+  ld_PF_Export_js(PacketFramework, fname="ProtocollConfig.json");
 
 
   outlist = list();
