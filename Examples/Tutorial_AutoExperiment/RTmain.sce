@@ -125,11 +125,12 @@ function [sim, u] = ControlSystem(sim, y)
 
             [sim] = ld_printf(sim, 0, zero, "Experiment finished ", 1);
             //
-            // TODO: 3) (Maybe homework ;-): Reduce the actuation variable u from ReferenceActuation to zero in
-            // TODO: 3) steps of size 0.05 for every sample. Note that this may take a variable numer of controller
+            // TODO: 3) Reduce the actuation variable u from ReferenceActuation to zero in
+            // TODO: 3) steps of size 0.05 for every sample. Note that this may take a variable number of sampling
             // TODO: 3) steps to perform!
-            // TODO: 4) Then the system should go to a fourth state (pause), that you inserted into this state machine,
-            // TODO: 4) when zero actuation is reached.
+            // TODO: 4) If u == 0 is reached, the system should go to a fourth state (pause), that you inserted youself
+            // TODO: 4) into this state machine to pause operation. The fourth state shall restart the whole procedure
+            // TODO: 4) starting at "state 1" when 6 seconds have passed.
             //
 
             u = zero;
@@ -174,9 +175,6 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
     [sim, Tpause] = ld_const(sim, 0, 1/27); // The sampling time that is constant at 27 Hz in this example
     [sim, out] = ld_ClockSync(sim, 0, in=Tpause); // synchronise this simulation
     
-    //
-    // Add your own control system here
-    //
     // feedback of the actuation variable without the disturbing_signal
     [sim, y_fb] = libdyn_new_feedback(sim); 
     [sim, y] = ld_gain(sim, 0, y_fb, 1);
