@@ -10,6 +10,12 @@
 //   Rev 1
 // 
 
+
+
+
+
+
+
 // The name of the program
 ProgramName = 'UDPio'; // must be the filename without .sce
 
@@ -71,6 +77,7 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
    Configuration.DestPort = 20000;
    Configuration.LocalSocketHost = "127.0.0.1";
    Configuration.LocalSocketPort = 20001;
+   PacketFramework.Configuration.debugmode = %t;
    [sim, PacketFramework] = ld_PF_InitInstance(sim, InstanceName="TrockenofenRemoteControl", Configuration)
 
    // Add a parameter for controlling the oscillator

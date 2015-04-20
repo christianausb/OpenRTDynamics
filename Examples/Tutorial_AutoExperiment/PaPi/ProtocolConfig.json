@@ -1,0 +1,5 @@
+ {"SourcesConfig" : {
+ "0" : { "SourceName" : "y" , "NValues_send" : "1", "datatype" : "257"  } } , 
+ "ParametersConfig" : {
+ "0" : { "ParameterName" : "Parameter 1" , "NValues" : "1", "datatype" : "257"  } }
+}

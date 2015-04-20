@@ -83,7 +83,15 @@ function [sim, u] = ControlSystem(sim, y)
             //
             // TODO: 1) Implement a PI-Controller, here! Hint H=z/(z-1) is the transfer function of an integrator
             // 
-            [sim, u] = ld_const(sim, 0, 4);
+            //[sim, u] = ld_const(sim, 0, 4);
+            
+            Kp = 0.1; Ki = 0.01;
+            
+            [sim, e] = ld_add(sim, 0, list(r,y), [1,-1] );
+            [sim, u1] = ld_gain(sim, 0, e, Kp);
+            [sim, u2] = ld_ztf(sim, 0, e, Ki * z/(z-1) );
+            [sim, u] = ld_add(sim, 0, list(u1,u2), [1,1] );
+            
 
             // check if the reference is reached ( r == y )
             [sim, TargetReached] = reference_reached(sim, r, y, N=40, eps=0.05);
@@ -114,8 +122,15 @@ function [sim, u] = ControlSystem(sim, y)
             // TODO: 2) This state shall be left when the experiment is over.
             //
 
-            u = ReferenceActuation;
-            [sim] = ld_savefile(sim, 0, fname="y.dat", source=y, vlen=1); // Example for saving data
+
+            [sim, u_plus] = ld_play_simple(sim, 0, [ zeros(20,1) ; ones(20, 1) ] ); 
+            [sim, u] = ld_add(sim, 0, list(ReferenceActuation, u_plus), [1,1] );
+            
+
+           // u = ReferenceActuation;
+            [sim, SignalsToSave] = ld_mux(sim, 0, 2, list(u, y) );
+            
+            [sim] = ld_savefile(sim, 0, fname="SignalsToSave.dat", source=SignalsToSave, vlen=2); // Example for saving data
 
             // wait 3 simulation steps and then switch to back to state 1
             [sim, active_state] = ld_steps(sim, 0, activation_simsteps=[100], values=[-1,3]);
@@ -187,6 +202,7 @@ function [sim, outlist, userdata] = Thread_MainRT(sim, inlist, userdata)
     
     // Simulation of a system to control
     z = poly(0, 'z');
+    
     [sim,y_kp1] = ld_ztf(sim, 0, u, 0.25*(1-0.97)/(z-0.97) );
     
     // print the systems output
