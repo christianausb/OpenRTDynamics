@@ -1299,9 +1299,11 @@ function [sim, v] = Auto_Experiment_Test1(sim, lam, ang, rlam, gam, pm1, pm2)
 
     // Please note ident_str must be unique.
     userdata = [];
-    [sim, finished, outlist, userdata] = ld_AutoOnlineExch_dev(sim, 0, inlist=list(lam, gam, rlam, pm1, pm2, ang), ...
+    param.scilab_path = "BUILDIN_PATH";
+    [sim, finished, outlist, userdata] = ld_AutoOnlineExch_dev2(sim, 0, inlist=list(lam, gam, rlam, pm1, pm2, ang), ...
     insizes, outsizes, intypes, outtypes, ... 
-    ThreadPrioStruct, CallbackFns, ident_str="Auto_Experiment_Test1", userdata);
+    ThreadPrioStruct, CallbackFns, ident_str="Auto_Experiment_Test1", userdata, param);
+
 
 
     v = outlist(1);
