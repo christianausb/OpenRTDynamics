@@ -1,9 +1,7 @@
 This is the OpenRTDynamics Git-repository.
 
-Some examples are put in here. By now, the main repository
-for the complete source code of OpenRTDynamics is hosted at 
-SourceForce: 
+Some examples are put in here. The main site of OpenRTDynamics is: 
 
-  http://sourceforge.net/p/openrtdynamics/code/HEAD/tree/trunk/
+  http://openrtdynamics.github.io
 
 
